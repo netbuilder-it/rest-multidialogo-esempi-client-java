@@ -285,11 +285,13 @@ public class Dto {
         public final String countryCode;
         public final String billingMode;
         public final CuTrack track;
+        public final String type;
 
         public CuPostRequest(String fileData) {
             this.label = "Esempio";
             this.countryCode = "it";
-            this.billingMode = "SPLIT";
+            this.billingMode = "CLAIM";
+            this.type = "CU";
             this.track = new CuTrack(fileData);
         }
     }
