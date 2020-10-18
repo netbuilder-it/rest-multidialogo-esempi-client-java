@@ -1,12 +1,83 @@
 package it.multidialogo.rest.client;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+@SuppressWarnings("FieldCanBeLocal")
 public class Domain {
 
     public static Attachments createAttachments(String uploadSessionId, List<File> fileList) {
         return new Attachments(uploadSessionId, fileList);
+    }
+
+    public static Sender createSender() {
+        Email email = new Email(Constants.SENDER_DISPLAY_ADDRESS, Constants.SENDER_NOTIFICATION_ADDRESS, Constants.SENDER_CERTIFIED_ADDRESS);
+        return new Sender(Constants.SENDER_COMPANY_NAME,
+                Constants.SENDER_STREET_ADDRESS,
+                Constants.SENDER_ADM_LVL3,
+                Constants.SENDER_ADM_LVL2,
+                Constants.SENDER_COUNTRY,
+                Constants.SENDER_ZIP_CODE,
+                Constants.SENDER_VAT_CODE,
+                email
+        );
+    }
+
+    public static AttachmentOptions createAttachmentOptions(boolean frontBack, String colorMode, String sheetFormat, Integer weight, boolean staple, Boolean globalStaple) {
+        return new AttachmentOptions(new PrintOptions(frontBack, colorMode, sheetFormat, weight, staple, globalStaple));
+    }
+
+    public static PostalInfo createPostalInfo(String streetAddress, String zipCode, String admLvl3, String admLvl2, String countryCode, String postageVector, String postageType, String type, String firstname, String lastname, String companyName) {
+        Postage postage = postageVector != null ? new Postage(postageVector, postageType) : null;
+        return new PostalInfo(streetAddress, zipCode, admLvl3, admLvl2, countryCode, postage, new PostalInfoName(type, firstname, lastname, companyName));
+    }
+
+    private static Recipient createRecipient(String email, String pec, PostalInfo postalInfo, List<String> attachmentFiles, String channel, String alternativeChannel, List<Keyword> keywords, List<CustomDataElement> customData) {
+        MessageOptions messageOptions = keywords != null ? new MessageOptions(keywords) : null;
+        return new Recipient(email, pec, postalInfo, new RecipientAttachment(attachmentFiles), new Carrier(channel, alternativeChannel), messageOptions, customData);
+    }
+
+    public static Recipient createRecipient(
+            String streetAddress, String zipCode, String admLvl3, String admLvl2, String countryCode, String postageVector, String postageType, String type, String firstname, String lastname, String companyName,
+            String email, String pec, List<String> attachmentFiles, String channel, String alternativeChannel, List<Keyword> keywords) {
+        PostalInfo postalInfo = createPostalInfo(streetAddress, zipCode, admLvl3, admLvl2, countryCode, postageVector, postageType, type, firstname, lastname, companyName);
+        return createRecipient(email, pec, postalInfo, attachmentFiles, channel, alternativeChannel, keywords, null);
+    }
+
+    public static Recipient createRecipient(
+            String streetAddress, String zipCode, String admLvl3, String admLvl2, String countryCode, String postageVector, String postageType, String type, String firstname, String lastname, String companyName,
+            String email, String pec, List<String> attachmentFiles, String channel, String alternativeChannel, List<Keyword> keywords, List<CustomDataElement> customData) {
+        PostalInfo postalInfo = createPostalInfo(streetAddress, zipCode, admLvl3, admLvl2, countryCode, postageVector, postageType, type, firstname, lastname, companyName);
+        return createRecipient(email, pec, postalInfo, attachmentFiles, channel, alternativeChannel, keywords, customData);
+    }
+
+    public static List<CustomDataElement> createCustomData(String key, String value, String visibility) {
+        List<CustomDataElement> ret = new ArrayList<>();
+        ret.add(new CustomDataElement(key, value, visibility));
+        return ret;
+    }
+
+    public static Dto.PostQueueDto createPostQueue(Domain.Sender sender, Domain.Attachments attachments, List<Domain.Recipient> recipients, String subject, String body, boolean useMulticerta, boolean useMulticertaLegal, boolean staple, boolean globalStaple, String topic, List<Domain.CustomDataElement> customData) {
+        Domain.Message message = new Domain.Message(subject, body);
+        Domain.Billing billing = new Domain.Billing("INVOICE_" + topic.replace(" ", "_").toUpperCase());
+        Domain.Multicerta multicerta = null;
+        Domain.Deadline deadline = null;
+        if (useMulticerta) {
+            multicerta = new Domain.Multicerta(useMulticertaLegal);
+            deadline = new Domain.Deadline("read", 3600);
+        }
+        Domain.Postal postal = new Domain.Postal(true, new Domain.PrintOptions(true, "color", null, null, staple, globalStaple));
+        Domain.Options options = new Domain.Options(billing, multicerta, deadline, postal);
+        return new Dto.PostQueueDto(new Dto.DataPayload<>(new Domain.PostQueue("concrete", sender, attachments, recipients, message, options, topic, customData)));
+    }
+
+    public static SmsSender createSmsSenderWithAlias(String aliasUuid, String notificationEmailAddress) {
+        return new SmsSender(aliasUuid, null, notificationEmailAddress);
+    }
+
+    public static SmsSender createSmsSenderWithPhoneNumber(String phoneNumberUuid, String notificationEmailAddress) {
+        return new SmsSender(null, phoneNumberUuid, notificationEmailAddress);
     }
 
     public static class Email {
@@ -43,19 +114,6 @@ public class Domain {
         }
     }
 
-    public static Sender createSender() {
-        Email email = new Email(Constants.SENDER_DISPLAY_ADDRESS, Constants.SENDER_NOTIFICATION_ADDRESS, Constants.SENDER_CERTIFIED_ADDRESS);
-        return new Sender(Constants.SENDER_COMPANY_NAME,
-                Constants.SENDER_STREET_ADDRESS,
-                Constants.SENDER_ADM_LVL3,
-                Constants.SENDER_ADM_LVL2,
-                Constants.SENDER_COUNTRY,
-                Constants.SENDER_ZIP_CODE,
-                Constants.SENDER_VAT_CODE,
-                email
-        );
-    }
-
     public static class PrintOptions {
         private final boolean frontBack;
         private final String colorMode;
@@ -82,23 +140,19 @@ public class Domain {
         }
     }
 
-    public static AttachmentOptions createAttachmentOptions(boolean frontBack, String colorMode, String sheetFormat, Integer weight, boolean staple, Boolean globalStaple) {
-        return new AttachmentOptions(new PrintOptions(frontBack, colorMode, sheetFormat, weight, staple, globalStaple));
-    }
-
     public static class File {
         private final String id;
         private final String visibility;
         private final AttachmentOptions options;
 
-        public String getId() {
-            return id;
-        }
-
         public File(String id, String visibility, AttachmentOptions options) {
             this.id = id;
             this.visibility = visibility;
             this.options = options;
+        }
+
+        public String getId() {
+            return id;
         }
     }
 
@@ -154,11 +208,6 @@ public class Domain {
             this.postage = postage;
             this.name = name;
         }
-    }
-
-    public static PostalInfo createPostalInfo(String streetAddress, String zipCode, String admLvl3, String admLvl2, String countryCode, String postageVector, String postageType, String type, String firstname, String lastname, String companyName) {
-        Postage postage = postageVector != null ? new Postage(postageVector, postageType) : null;
-        return new PostalInfo(streetAddress, zipCode, admLvl3, admLvl2, countryCode, postage, new PostalInfoName(type, firstname, lastname, companyName));
     }
 
     public static class RecipientAttachment {
@@ -217,25 +266,6 @@ public class Domain {
         }
     }
 
-    private static Recipient createRecipient(String email, String pec, PostalInfo postalInfo, List<String> attachmentFiles, String channel, String alternativeChannel, List<Keyword> keywords, List<CustomDataElement> customData) {
-        MessageOptions messageOptions = keywords != null ? new MessageOptions(keywords) : null;
-        return new Recipient(email, pec, postalInfo, new RecipientAttachment(attachmentFiles), new Carrier(channel, alternativeChannel), messageOptions, customData);
-    }
-
-    public static Recipient createRecipient(
-            String streetAddress, String zipCode, String admLvl3, String admLvl2, String countryCode, String postageVector, String postageType, String type, String firstname, String lastname, String companyName,
-            String email, String pec, List<String> attachmentFiles, String channel, String alternativeChannel, List<Keyword> keywords) {
-        PostalInfo postalInfo = createPostalInfo(streetAddress, zipCode, admLvl3, admLvl2, countryCode, postageVector, postageType, type, firstname, lastname, companyName);
-        return createRecipient(email, pec, postalInfo, attachmentFiles, channel, alternativeChannel, keywords, null);
-    }
-
-    public static Recipient createRecipient(
-            String streetAddress, String zipCode, String admLvl3, String admLvl2, String countryCode, String postageVector, String postageType, String type, String firstname, String lastname, String companyName,
-            String email, String pec, List<String> attachmentFiles, String channel, String alternativeChannel, List<Keyword> keywords, List<CustomDataElement> customData) {
-        PostalInfo postalInfo = createPostalInfo(streetAddress, zipCode, admLvl3, admLvl2, countryCode, postageVector, postageType, type, firstname, lastname, companyName);
-        return createRecipient(email, pec, postalInfo, attachmentFiles, channel, alternativeChannel, keywords, customData);
-    }
-
     public static class Message {
         private final String subject;
         private final String body;
@@ -271,7 +301,6 @@ public class Domain {
             this.duration = duration;
         }
     }
-
 
     public static class Postal {
         private final boolean expedite;
@@ -309,12 +338,6 @@ public class Domain {
         }
     }
 
-    public static List<CustomDataElement> createCustomData(String key, String value, String visibility) {
-        List<CustomDataElement> ret = new ArrayList<>();
-        ret.add(new CustomDataElement(key, value, visibility));
-        return ret;
-    }
-
     public static class PostQueue {
         private final String type;
         private final Sender sender;
@@ -337,17 +360,55 @@ public class Domain {
         }
     }
 
-    public static Dto.PostQueueDto createPostQueue(Domain.Sender sender, Domain.Attachments attachments, List<Domain.Recipient> recipients, String subject, String body, boolean useMulticerta, boolean useMulticertaLegal, boolean staple, boolean globalStaple, String topic, List<Domain.CustomDataElement> customData) {
-        Domain.Message message = new Domain.Message(subject, body);
-        Domain.Billing billing = new Domain.Billing("INVOICE_" + topic.replace(" ", "_").toUpperCase());
-        Domain.Multicerta multicerta = null;
-        Domain.Deadline deadline = null;
-        if (useMulticerta) {
-            multicerta = new Domain.Multicerta(useMulticertaLegal);
-            deadline = new Domain.Deadline("read", 3600);
+    public static SmsQueueOptions createSmsQueueOptions(LocalDateTime scheduleAt, String invoiceTag) {
+        SmsQueueBillingOptions billingOptions = null;
+        if (invoiceTag != null && invoiceTag.length() > 0) {
+            billingOptions = new SmsQueueBillingOptions(invoiceTag);
         }
-        Domain.Postal postal = new Domain.Postal(true, new Domain.PrintOptions(true, "color", null, null, staple, globalStaple));
-        Domain.Options options = new Domain.Options(billing, multicerta, deadline, postal);
-        return new Dto.PostQueueDto(new Dto.DataPayload<>(new Domain.PostQueue("concrete", sender, attachments, recipients, message, options, topic, customData)));
+        return new SmsQueueOptions(scheduleAt, billingOptions);
     }
+
+    public static class SmsSender {
+        public final String aliasUuid;
+        public final String phoneNumberUuid;
+        public final String notificationAddress;
+
+
+        public SmsSender(String aliasUuid, String phoneNumberUuid, String notificationAddress) {
+            this.aliasUuid = aliasUuid;
+            this.phoneNumberUuid = phoneNumberUuid;
+            this.notificationAddress = notificationAddress;
+        }
+    }
+
+    public static class SmsQueueOptions {
+        public final LocalDateTime scheduleAt;
+        public final SmsQueueBillingOptions billing;
+
+        public SmsQueueOptions(LocalDateTime ScheduleAt, SmsQueueBillingOptions billingOptions) {
+            scheduleAt = ScheduleAt;
+            billing = billingOptions;
+        }
+    }
+
+    public static class SmsQueueBillingOptions {
+        public final String invoiceTag;
+
+        public SmsQueueBillingOptions(String invoiceTag) {
+            this.invoiceTag = invoiceTag;
+        }
+    }
+
+    public static class SmsRecipient {
+        public final String phoneNumber;
+        public final List<Keyword> keywords;
+        public final List<CustomDataElement> customData;
+
+        public SmsRecipient(String phoneNumber, List<Keyword> keywords, List<CustomDataElement> customData) {
+            this.phoneNumber = phoneNumber;
+            this.customData = customData;
+            this.keywords = keywords;
+        }
+    }
+
 }
