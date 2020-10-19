@@ -21,7 +21,7 @@ public class Dto {
     public static class DataPayload<T> {
         private String id;
         private String type;
-        private T attributes;
+        private final T attributes;
 
         public String getId() {
             return id;
@@ -102,7 +102,7 @@ public class Dto {
     }
 
     public static LoginRequestData createLoginRequestData(String username, String password) {
-        return new LoginRequestData(new DataPayload<LoginRequest>(new LoginRequest(username, password)));
+        return new LoginRequestData(new DataPayload<>(new LoginRequest(username, password)));
     }
 
     public static class TokenResponse {
@@ -133,7 +133,7 @@ public class Dto {
     }
 
     public static UploadFiledRequestData createUploadFileRequestData(String fileName, String fileContent) {
-        return new UploadFiledRequestData(new DataPayload<UploadFileRequest>(new UploadFileRequest(fileName, fileContent)));
+        return new UploadFiledRequestData(new DataPayload<>(new UploadFileRequest(fileName, fileContent)));
     }
 
     public static class UploadFileRequest {
@@ -168,7 +168,7 @@ public class Dto {
     }
 
     public static RefreshTokenRequest createRefreshTokenRequest(String username, String refreshToken) {
-        return new RefreshTokenRequest(new DataPayload<RefreshToken>(new RefreshToken(username, refreshToken)));
+        return new RefreshTokenRequest(new DataPayload<>(new RefreshToken(username, refreshToken)));
     }
 
     public static class PostQueueDto {
@@ -307,4 +307,33 @@ public class Dto {
             return new CuPostRequestDto((new CuPostRequest(fileData)));
         }
     }
+
+    public static class PostSmsQueueRequest {
+        public final Domain.SmsSender sender;
+        public final String type = "sms-queue";
+        public final String topic;
+        public final String message;
+        private final Domain.SmsQueueOptions options;
+        public final List<Domain.CustomDataElement> customData = new ArrayList<>();
+        public final List<Domain.SmsRecipient> recipients = new ArrayList<>();
+
+        public PostSmsQueueRequest(Domain.SmsSender sender,
+                                   String topic,
+                                   String message,
+                                   Domain.SmsQueueOptions options) {
+            this.sender = sender;
+            this.topic = topic;
+            this.message = message;
+            this.options = options;
+        }
+    }
+
+    public static class PostSmsQueueRequestDto {
+        public final DataPayload<PostSmsQueueRequest> data;
+
+        public PostSmsQueueRequestDto(PostSmsQueueRequest postSmsQueueRequest) {
+            this.data = new DataPayload<>(postSmsQueueRequest);
+        }
+    }
+
 }

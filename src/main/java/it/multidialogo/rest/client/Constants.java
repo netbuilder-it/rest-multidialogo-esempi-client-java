@@ -16,6 +16,9 @@ public class Constants {
     public static final String SENDER_ZIP_CODE = "";
     public static final String SENDER_VAT_CODE = "";
 
+    public static final String SENDER_SMS_ALIAS_UUID = "";
+    public static final String SENDER_PHONE_NUMBER_UUID = "";
+
     public static final String MULTICERTA_ENABLED_ADDRESS = "";
 
     public static final String X_API_CLIENT_NAME = "";

@@ -16,7 +16,9 @@ import org.apache.http.util.EntityUtils;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
+import java.time.LocalDateTime;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Scanner;
 
 import static it.multidialogo.rest.client.TokenWallet.storeTokens;
@@ -28,7 +30,7 @@ public class Main {
     private static Scanner menuchoice;
     private static boolean done = false;
 
-    public static void main(String[] args) throws IOException, ApiDialogException, URISyntaxException, NoSuchFieldException {
+    public static void main(String[] args) throws IOException, ApiDialogException, URISyntaxException {
         inizialization();
 
         while (!done) {
@@ -68,6 +70,10 @@ public class Main {
                 case 8:
                     scenario_8();
                     break;
+                case 9:
+                    scenario_9();
+                    break;
+
                 default:
                     System.out.println("Scenario non gestito: " + chosenScenario);
             }
@@ -76,7 +82,7 @@ public class Main {
     }
 
     private static void menu() {
-        System.out.println("");
+        System.out.println();
         System.out.println("-------------------");
         System.out.println("Scenari disponibili");
         System.out.println("-------------------");
@@ -88,6 +94,7 @@ public class Main {
         System.out.println(" 6 - Elenco utenti collegati all'utente principale");
         System.out.println(" 7 - Invio Certificazione Unica 2020");
         System.out.println(" 8 - Legge tipo di affrancatura impostata in preferenze");
+        System.out.println(" 9 - Invio messaggio SMS a 2 destinari");
         System.out.println(" 0 - Fine");
         System.out.print("Scegli lo scenario: ");
     }
@@ -124,7 +131,7 @@ public class Main {
                 "pt", "RACCOMANDATA1",
                 "person", "Winton", "Marsalis", "Multidialogo Srl",
                 "esempio1@catchall.netbuilder.it", null,
-                Arrays.asList(personale1.getId()),
+                Collections.singletonList(personale1.getId()),
                 "sendposta", null,
                 null);
 
@@ -132,7 +139,7 @@ public class Main {
                 "pt", "RACCOMANDATA1AR",
                 "person", "Clara", "Schumann", "ASA Srl",
                 "esempio2@catchall.netbuilder.it", null,
-                Arrays.asList(personale2.getId()),
+                Collections.singletonList(personale2.getId()),
                 "sendposta", null,
                 null);
 
@@ -140,7 +147,7 @@ public class Main {
                 "pt", "PRIORITARIA1",
                 "person", "Amilcare", "Ponchielli", "AM Spa",
                 "esempio3@catchall.netbuilder.it", "info@pec.testtest.it",
-                Arrays.asList(personale3.getId()),
+                Collections.singletonList(personale3.getId()),
                 "sendposta", null,
                 null);
 
@@ -172,7 +179,7 @@ public class Main {
                 "pt", "RACCOMANDATA1",
                 "person", "Camille", "Saint Saëns", "Carnaval des animaux Srl",
                 "esempio1@catchall.netbuilder.it", null,
-                Arrays.asList(personale1.getId()),
+                Collections.singletonList(personale1.getId()),
                 "sendposta", null,
                 null);
 
@@ -180,7 +187,7 @@ public class Main {
                 "pt", "RACCOMANDATA1AR",
                 "person", "Maurice", "Ravel", "La Valse Srl",
                 Constants.MULTICERTA_ENABLED_ADDRESS, null,
-                Arrays.asList(personale2.getId()),
+                Collections.singletonList(personale2.getId()),
                 "multicerta", "sendposta",
                 null);
 
@@ -188,7 +195,7 @@ public class Main {
                 "pt", "PRIORITARIA1",
                 "person", "Franz", "Schubert", "Die forelle Spa",
                 Constants.MULTICERTA_ENABLED_ADDRESS, "info@pec.testtest.it",
-                Arrays.asList(personale3.getId()),
+                Collections.singletonList(personale3.getId()),
                 "multicerta", "sendposta",
                 null);
 
@@ -227,7 +234,7 @@ public class Main {
                 "pt", "RACCOMANDATA1AR",
                 "person", "Clara", "Schumann", "ASA Srl",
                 "esempio2@catchall.netbuilder.it", null,
-                Arrays.asList(personale2.getId()),
+                Collections.singletonList(personale2.getId()),
                 "sendposta", null,
                 null);
 
@@ -334,6 +341,49 @@ public class Main {
         System.out.println("Affrancatura impostata: " + userPreferencesData.getSenderPostageType());
     }
 
+    // invio coda messaggio sms.
+    private static void scenario_9() throws IOException, ApiDialogException {
+        String account = Utils.getAccount();
+        // sender
+        Domain.SmsSender sender = Domain.createSmsSenderWithPhoneNumber(
+                Constants.SENDER_PHONE_NUMBER_UUID,
+                Constants.SENDER_NOTIFICATION_ADDRESS
+        );
+
+        // options
+        Domain.SmsQueueOptions options = Domain.createSmsQueueOptions(null, "Promemoria #1443");
+
+        // request
+        Dto.PostSmsQueueRequest request = new Dto.PostSmsQueueRequest(
+                sender,
+                "Promemoria",
+                "Ciao {name}",
+                options);
+
+        // add global custom data
+        request.customData.add(new Domain.CustomDataElement("my-identifier", "xyz", "hidden"));
+
+        // recipients
+        request.recipients.add(
+                new Domain.SmsRecipient(
+                        "+393660000001",
+                        Collections.singletonList(new Domain.Keyword("name", "Mario")),
+                        Collections.emptyList()
+                )
+        );
+
+        request.recipients.add(
+                new Domain.SmsRecipient(
+                        "+393660000002",
+                        Collections.singletonList(new Domain.Keyword("name", "Maria")),
+                        // add custom data to this particular recipient
+                        Collections.singletonList(new Domain.CustomDataElement("recipient-id", "100", "hidden"))
+                )
+        );
+
+        sendPostSmsQueueRequest(account, new Dto.PostSmsQueueRequestDto(request));
+    }
+
     private static File postFile(String account, String uploadSessionId, String fileName, String visibility, Domain.AttachmentOptions options) throws IOException, URISyntaxException, ApiDialogException {
         String fileContent = Utils.createFileContent(fileName, "application/pdf");
         String json = Utils.createPostFilePayload(fileName, fileContent, gson);
@@ -413,7 +463,7 @@ public class Main {
     }
 
     private static CloseableHttpResponse sendRequest(String url, String json, String method) throws IOException {
-        CloseableHttpResponse response = null;
+        CloseableHttpResponse response;
         boolean done = false;
 
         do {
@@ -464,6 +514,31 @@ public class Main {
     private static int getStatusCode(CloseableHttpResponse response) {
         return response.getStatusLine().getStatusCode();
     }
+
+    private static void sendPostSmsQueueRequest(String account, Dto.PostSmsQueueRequestDto postQueueDto) throws ApiDialogException, IOException {
+        String url = Constants.REST_MULTIDIALOGO_STAGE_HOST + "/users/" + account + "/sms-queues";
+        String json = gson.toJson(postQueueDto);
+
+        System.out.println(json);
+
+        CloseableHttpResponse response = sendRequest(url, json, "Post");
+
+        if (response == null) {
+            throw new ApiDialogException("Impossibile creare la coda");
+        }
+
+        if (getStatusCode(response) == HttpStatus.SC_CREATED) {
+            System.out.println("Coda creata");
+        } else {
+            System.out.println("Si è verificato un errore! Dettagli: ");
+            String responseAsString = getResponseAsString(response);
+            System.out.println(responseAsString);
+            handleErrors(responseAsString);
+        }
+
+        response.close();
+    }
+
 
     private static void sendPostQueueRequest(String account, PostQueueDto postQueueDto) throws ApiDialogException, IOException {
         String url = Constants.REST_MULTIDIALOGO_STAGE_HOST + "/users/" + account + "/queues";
